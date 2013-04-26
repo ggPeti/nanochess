@@ -25,17 +25,17 @@
 // So, for example, white king has code 0x1A and after it's first move becomes 0x0A.
 // Area outside of the chessboard filled with 0x07, empty cells contain 0x00.
 
-var B, // source position of the move
-    i, // current piece code
-    y, // current player: 0 - white, 8 - black
-    u, // position of pawn after two-square move, 0 after any other move
-    b, // target position of the move
+var moveFrom, // source position of the move
+    curPieceCode, // current piece code
+    curPlayer, // current player: 0 - white, 8 - black
+    pawn2SquareMove, // position of pawn after two-square move, 0 after any other move
+    moveTo, // target position of the move
     I = [],
     board = [], // chessboard (12 rows x 10 columns, see wiki for more info)
-    G = 120,
-    x = 10, // just ten ;)
-    z = 15, // just fifteen ;)
-    M = 10000,
+    C120 = 120,
+    C10 = 10, // just ten ;)
+    C15 = 15, // just fifteen ;)
+    C10000 = 10000,
     piecesCosts = [0,99,0,306,297,495,846], // cost of the pieces (empty,pawn,king,knight,bishop,rook,queen)
     rowsCosts = [-1,0,1,2,2,1,0,-1]; // cost of the rows/columns
 
@@ -75,7 +75,7 @@ function undoMove(O, p, o, r, m, g) {
         board[m] = board[g];
         board[g] = 0;
     } else if (g) {
-        board[g] = 9 ^ y;
+        board[g] = 9 ^ curPlayer;
     }
 }
 
@@ -93,8 +93,8 @@ function X(w,c,h,e,S,s) {
         E,
         d,
         O = e,
-        N = -M*M, // heuristic of the best move
-        K = (78 - h) << x, // cost of the check
+        N = -C10000*C10000, // heuristic of the best move
+        K = (78 - h) << C10, // cost of the check
         p,
         g, // "en passant" or castling target position
         n,
@@ -103,18 +103,18 @@ function X(w,c,h,e,S,s) {
         r,
         C,
         J,
-        a = y ? -x : x, // +10 for white, -10 for black
+        a = curPlayer ? -C10 : C10, // +10 for white, -10 for black
         moves;
-    y ^= 8;
-    G++;
-    d = w || (s && s>=h && X(0,0,0,21,0,0) > M);
+    curPlayer ^= 8;
+    C120++;
+    d = w || (s && s>=h && X(0,0,0,21,0,0) > C10000);
     // loop for all cells starting with e (usually 21, "A8") and finishing just before e
     // O - current cell, read-only inside loop
     do {
         p = O; // current position
         o = board[p]; // current piece code (or'ed with 16) or 0 or 7
         if (o) { // if cell doesn't empty
-            q = o & z ^ y; // current piece code (1..6 for current player, 9..14 for opponent, 7 or 15 - outside)
+            q = o & C15 ^ curPlayer; // current piece code (1..6 for current player, 9..14 for opponent, 7 or 15 - outside)
             if (q < 7) {
                 q--;
                 moves = movesForPiece(o);
@@ -127,20 +127,20 @@ function X(w,c,h,e,S,s) {
                     r = board[p]; // piece code at the target cell, read-only below
                     if (!w | p == w) { // required target cell not specified or equals to current target
                         g = (q == 0 && p + a == S) ? S : 0; // en passant
-                        if ((!r & (!!q | C>1 || !!g)) || ((r+1&z^y)>9 && (q | C<2))) {
+                        if ((!r & (!!q | C>1 || !!g)) || ((r+1&C15^curPlayer)>9 && (q | C<2))) {
                             m = !(r - 2 & 7); // king on the target cell, check!
                             if (m) {
-                                y ^= 8;
-                                I[G--] = O;
+                                curPlayer ^= 8;
+                                I[C120--] = O;
                                 return K;
                             }
                             // m is 0 after this point
-                            J = n = o & z; // J & n - current piece code
-                            E = board[p - a] & z; // piece at the cell above target (for white) or below target (for black)
+                            J = n = o & C15; // J & n - current piece code
+                            E = board[p - a] & C15; // piece at the cell above target (for white) or below target (for black)
                             // for pawn on the last line loop runs from n=3 (or 11) to t=6 (or 14) (promotions)
                             // for king loop can run two times if castling is possible
                             // for any other piece loop runs only once with n = t = piece code
-                            t = (q | E-7) ? n : (n+=2,6^y);
+                            t = (q | E-7) ? n : (n+=2,6^curPlayer);
                             while (n <= t) {
                                 // Heuristic:
                                 // For attack moves:
@@ -169,14 +169,14 @@ function X(w,c,h,e,S,s) {
                                 //   +1 for blocking opponent's pawn
                                 L = r ? piecesCosts[r&7]-h-q : 0; // value of the attacked piece (0 for empty cell)
                                 if (s) {
-                                    L+=((1-q) ? rowsCosts[(p-p%x)/x-2] - rowsCosts[(O-O%x)/x-2] +
-                                                rowsCosts[p%x-1]*(q?1:2) - rowsCosts[O%x-1] + (o&16)/2
+                                    L+=((1-q) ? rowsCosts[(p-p%C10)/C10-2] - rowsCosts[(O-O%C10)/C10-2] +
+                                                rowsCosts[p%C10-1]*(q?1:2) - rowsCosts[O%C10-1] + (o&16)/2
                                               : !!m * 9) +
                                        (!q ? !(board[p-1]^n) + !(board[p+1]^n) + piecesCosts[n&7] - 99 + !!g * 99 + (C == 3)
                                            : 0) +
-                                       !(E ^ y ^ 9);
+                                       !(E ^ curPlayer ^ 9);
                                 }
-                                if ((s > h) || ((1<s & s==h) && (L>z | d))) {
+                                if ((s > h) || ((1<s & s==h) && (L>C15 | d))) {
                                     // execute move
                                     executeMove(O, p, n, m, g);
                                     // find opponent's best move
@@ -184,37 +184,37 @@ function X(w,c,h,e,S,s) {
                                     L -= X((s > h | d) ? 0 : p,
                                            L - N,
                                            h + 1,
-                                           I[G+1],
+                                           I[C120+1],
                                            J,
                                            s);
                                     // if we in check mode (s==1) and current move (O,p,n) same as player's (B,b,i)
                                     // and move is possible then update chessboard and return
-                                    if (!h && s == 1 && B == O && i == n && p == b && L >= -M) {
+                                    if (!h && s == 1 && moveFrom == O && curPieceCode == n && p == moveTo && L >= -C10000) {
                                         DrawPieces();
-                                        G--;
-                                        u = J;
-                                        return u;
+                                        C120--;
+                                        pawn2SquareMove = J;
+                                        return pawn2SquareMove;
                                     }
                                     // is castling possible?
-                                    J = (q-1 | C>1) || m || (!s | d | r | o<z) || X(0,0,0,21,0,0) > M;
+                                    J = (q-1 | C>1) || m || (!s | d | r | o<C15) || X(0,0,0,21,0,0) > C10000;
                                     // undo move
                                     undoMove(O, p, o, r, m, g);
                                 }
                                 // if current move has better heuristic
                                 if (L>N || (s>1 && L==N && !h && Math.random()<.5)) {
-                                    I[G] = O;
+                                    I[C120] = O;
                                     if (s > 1) {
                                         // cutoff
                                         if (h && L > c) {
-                                            y ^= 8;
-                                            G--;
+                                            curPlayer ^= 8;
+                                            C120--;
                                             return L;
                                         }
                                         // output this move
                                         if (!h) {
-                                            i = n;
-                                            B = O;
-                                            b = p;
+                                            curPieceCode = n;
+                                            moveFrom = O;
+                                            moveTo = p;
                                         }
                                     }
                                     N = L;
@@ -222,23 +222,23 @@ function X(w,c,h,e,S,s) {
                                 // try castling if J == 0
                                 n += J || (g = p,
                                            m = (p < O) ? g-3 : g+2,
-                                           (board[m] < z | board[m+O-p]) || board[p+=p-O]) ? 1 : 0;
+                                           (board[m] < C15 | board[m+O-p]) || board[p+=p-O]) ? 1 : 0;
                             }
                         }
                     }
                     // If target cell was empty and current piece is rook, queen or bishop -
                     // try to move further in same direction. otherwise try next move from table
                     // skip two-square move for pawn if it was moved, or square ahead of it is occupied.
-                } while ((!r & q>2) || (p=O, (q | C < 2 | o > z & !r) && (++C < moves.length)));
+                } while ((!r & q>2) || (p=O, (q | C < 2 | o > C15 & !r) && (++C < moves.length)));
             }
         }
     } while ((++O > 98) ? O = 20 : e - O);
-    y ^= 8;
-    G--;
-    return (N + M*M && (N > 1924-K | d)) ? N : 0;
+    curPlayer ^= 8;
+    C120--;
+    return (N + C10000*C10000 && (N > 1924-K | d)) ? N : 0;
 }
 
-y = u = 0;
+curPlayer = pawn2SquareMove = 0;
 
 function SetupChessboard() {
     var x, y;
@@ -287,11 +287,11 @@ function CreateChessboardView() {
 function DrawPieces() {
     var pieces = "\xa0\u265f\u265a\u265e\u265d\u265c\u265b  \u2659\u2654\u2658\u2657\u2656\u2655";
     var p, q;
-    B=b;
+    moveFrom=moveTo;
     for (p=21; p<99; ++p) {
         if (q = document.getElementById("o" + p)) {
             q.innerHTML = pieces.charAt(board[p] & 15);
-            q.style.borderColor = (p == B) ? "red" : "#dde";
+            q.style.borderColor = (p == moveFrom) ? "red" : "#dde";
         }
     }
 }
@@ -301,24 +301,24 @@ var clickLock = false;
 function OnClick(s) {
     if (clickLock)
         return;
-    i = (board[s] ^ y) & z;
-    if (i > 8) {
+    curPieceCode = (board[s] ^ curPlayer) & C15;
+    if (curPieceCode > 8) {
         // clicked on the own piece
-        b = s;
+        moveTo = s;
         DrawPieces();
-    } else if (B && i<9) {
+    } else if (moveFrom && curPieceCode<9) {
         // clicked on the opponent piece or empty space
-        b = s;
-        i = board[B] & z;
+        moveTo = s;
+        curPieceCode = board[moveFrom] & C15;
         // pawn promotion
-        if ((i & 7) == 1 & (b < 29 | b > 90))
-            i = 14 - document.getElementById("t").selectedIndex ^ y;
+        if ((curPieceCode & 7) == 1 & (moveTo < 29 | moveTo > 90))
+            curPieceCode = 14 - document.getElementById("t").selectedIndex ^ curPlayer;
         // verify player move and execute it
-        X(0,0,0,21,u,1);
+        X(0,0,0,21,pawn2SquareMove,1);
         // Call A.I. after some delay
-        if (y) {
+        if (curPlayer) {
             clickLock = true;
-            setTimeout("X(0,0,0,21,u,2/*ply*/);X(0,0,0,21,u,1);clickLock=false;",250);
+            setTimeout("X(0,0,0,21,pawn2SquareMove,2/*ply*/);X(0,0,0,21,pawn2SquareMove,1);clickLock=false;",250);
         }
     }
 }
@@ -327,6 +327,6 @@ SetupChessboard();
 CreateChessboardView();
 DrawPieces();
 
-i = 100;
+curPieceCode = 100;
 
 </script>
