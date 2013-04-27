@@ -86,15 +86,15 @@ function undoMove(O, p, o, r, m, g) {
 // S - position of pawn after two-square move, 0 after any other move
 // s - scan depth (1 - verify B -> b and execute it,
 //                 0 - used for check checking (returns above 70k when opponent's king under attack)
-function X(w,c,h,e,S,s) {
+function compute(w,cutoff,currDepth,startCell,pawn2SquareMoveParam,scanDepth) {
     var t,
         o,
         L, // heuristic of the current move
         E,
         d,
-        O = e,
+        O = startCell,
         N = -C10000*C10000, // heuristic of the best move
-        K = (78 - h) << C10, // cost of the check
+        K = (78 - currDepth) << C10, // cost of the check
         p,
         g, // "en passant" or castling target position
         n,
@@ -107,13 +107,13 @@ function X(w,c,h,e,S,s) {
         moves;
     curPlayer ^= 8;
     C120++;
-    d = w || (s && s>=h && X(0,0,0,21,0,0) > C10000);
+    d = w || (scanDepth && scanDepth>=currDepth && compute(0,0,0,21,0,0) > C10000);
     // loop for all cells starting with e (usually 21, "A8") and finishing just before e
     // O - current cell, read-only inside loop
     do {
         p = O; // current position
         o = board[p]; // current piece code (or'ed with 16) or 0 or 7
-        if (o) { // if cell doesn't empty
+        if (o) { // if cell isn't empty
             q = o & C15 ^ curPlayer; // current piece code (1..6 for current player, 9..14 for opponent, 7 or 15 - outside)
             if (q < 7) {
                 q--;
@@ -126,7 +126,7 @@ function X(w,c,h,e,S,s) {
                     p += moves[C]; // target cell position
                     r = board[p]; // piece code at the target cell, read-only below
                     if (!w | p == w) { // required target cell not specified or equals to current target
-                        g = (q == 0 && p + a == S) ? S : 0; // en passant
+                        g = (q == 0 && p + a == pawn2SquareMoveParam) ? pawn2SquareMoveParam : 0; // en passant
                         if ((!r & (!!q | C>1 || !!g)) || ((r+1&C15^curPlayer)>9 && (q | C<2))) {
                             m = !(r - 2 & 7); // king on the target cell, check!
                             if (m) {
@@ -167,8 +167,8 @@ function X(w,c,h,e,S,s) {
                                 //   +1 for two-square move
                                 // For all:
                                 //   +1 for blocking opponent's pawn
-                                L = r ? piecesCosts[r&7]-h-q : 0; // value of the attacked piece (0 for empty cell)
-                                if (s) {
+                                L = r ? piecesCosts[r&7]-currDepth-q : 0; // value of the attacked piece (0 for empty cell)
+                                if (scanDepth) {
                                     L+=((1-q) ? rowsCosts[(p-p%C10)/C10-2] - rowsCosts[(O-O%C10)/C10-2] +
                                                 rowsCosts[p%C10-1]*(q?1:2) - rowsCosts[O%C10-1] + (o&16)/2
                                               : !!m * 9) +
@@ -176,42 +176,42 @@ function X(w,c,h,e,S,s) {
                                            : 0) +
                                        !(E ^ curPlayer ^ 9);
                                 }
-                                if ((s > h) || ((1<s & s==h) && (L>C15 | d))) {
+                                if ((scanDepth > currDepth) || ((1<scanDepth & scanDepth==currDepth) && (L>C15 | d))) {
                                     // execute move
                                     executeMove(O, p, n, m, g);
                                     // find opponent's best move
                                     J = (q | C<3) ? 0 : p;
-                                    L -= X((s > h | d) ? 0 : p,
+                                    L -= compute((scanDepth > currDepth | d) ? 0 : p,
                                            L - N,
-                                           h + 1,
+                                           currDepth + 1,
                                            I[C120+1],
                                            J,
-                                           s);
+                                           scanDepth);
                                     // if we in check mode (s==1) and current move (O,p,n) same as player's (B,b,i)
                                     // and move is possible then update chessboard and return
-                                    if (!h && s == 1 && moveFrom == O && curPieceCode == n && p == moveTo && L >= -C10000) {
+                                    if (!currDepth && scanDepth == 1 && moveFrom == O && curPieceCode == n && p == moveTo && L >= -C10000) {
                                         DrawPieces();
                                         C120--;
                                         pawn2SquareMove = J;
                                         return pawn2SquareMove;
                                     }
                                     // is castling possible?
-                                    J = (q-1 | C>1) || m || (!s | d | r | o<C15) || X(0,0,0,21,0,0) > C10000;
+                                    J = (q-1 | C>1) || m || (!scanDepth | d | r | o<C15) || compute(0,0,0,21,0,0) > C10000;
                                     // undo move
                                     undoMove(O, p, o, r, m, g);
                                 }
                                 // if current move has better heuristic
-                                if (L>N || (s>1 && L==N && !h && Math.random()<.5)) {
+                                if (L>N || (scanDepth>1 && L==N && !currDepth && Math.random()<.5)) {
                                     I[C120] = O;
-                                    if (s > 1) {
+                                    if (scanDepth > 1) {
                                         // cutoff
-                                        if (h && L > c) {
+                                        if (currDepth && L > cutoff) {
                                             curPlayer ^= 8;
                                             C120--;
                                             return L;
                                         }
                                         // output this move
-                                        if (!h) {
+                                        if (!currDepth) {
                                             curPieceCode = n;
                                             moveFrom = O;
                                             moveTo = p;
@@ -232,7 +232,7 @@ function X(w,c,h,e,S,s) {
                 } while ((!r & q>2) || (p=O, (q | C < 2 | o > C15 & !r) && (++C < moves.length)));
             }
         }
-    } while ((++O > 98) ? O = 20 : e - O);
+    } while ((++O > 98) ? O = 20 : startCell - O);
     curPlayer ^= 8;
     C120--;
     return (N + C10000*C10000 && (N > 1924-K | d)) ? N : 0;
@@ -298,27 +298,27 @@ function DrawPieces() {
 
 var clickLock = false;
 
-function OnClick(s) {
+function OnClick(fieldID) {
     if (clickLock)
         return;
-    curPieceCode = (board[s] ^ curPlayer) & C15;
+    curPieceCode = (board[fieldID] ^ curPlayer) & C15;
     if (curPieceCode > 8) {
         // clicked on the own piece
-        moveTo = s;
+        moveTo = fieldID;
         DrawPieces();
     } else if (moveFrom && curPieceCode<9) {
         // clicked on the opponent piece or empty space
-        moveTo = s;
+        moveTo = fieldID;
         curPieceCode = board[moveFrom] & C15;
         // pawn promotion
         if ((curPieceCode & 7) == 1 & (moveTo < 29 | moveTo > 90))
             curPieceCode = 14 - document.getElementById("t").selectedIndex ^ curPlayer;
         // verify player move and execute it
-        X(0,0,0,21,pawn2SquareMove,1);
+        compute(0,0,0,21,pawn2SquareMove,1);
         // Call A.I. after some delay
         if (curPlayer) {
             clickLock = true;
-            setTimeout("X(0,0,0,21,pawn2SquareMove,2/*ply*/);X(0,0,0,21,pawn2SquareMove,1);clickLock=false;",250);
+            setTimeout("compute(0,0,0,21,pawn2SquareMove,2/*ply*/);compute(0,0,0,21,pawn2SquareMove,1);clickLock=false;",250);
         }
     }
 }
