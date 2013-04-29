@@ -284,7 +284,19 @@ function CreateChessboardView() {
     document.write(a);
 }
 
+	function debug()
+	{
+		console.log("board: " + board);
+		console.log("cpc: " + curPieceCode);
+		console.log("cp: " + curPlayer);
+		console.log("p2sm: " + pawn2SquareMove);
+		console.log("mf: " + moveFrom);
+		console.log("mt: " + moveTo);
+	}
+
+	
 function DrawPieces() {
+    debug();
     var pieces = "\xa0\u265f\u265a\u265e\u265d\u265c\u265b  \u2659\u2654\u2658\u2657\u2656\u2655";
     var p, q;
     moveFrom=moveTo;
@@ -294,6 +306,16 @@ function DrawPieces() {
             q.style.borderColor = (p == moveFrom) ? "red" : "#dde";
         }
     }
+}
+
+
+function triggerAI()
+{
+	console.log('triggerAI begin');
+	compute(0,0,0,21,pawn2SquareMove,2); // 2 = ply
+	compute(0,0,0,21,pawn2SquareMove,1);
+	clickLock=false;
+	console.log('triggerAI end');
 }
 
 var clickLock = false;
@@ -318,7 +340,7 @@ function OnClick(fieldID) {
         // Call A.I. after some delay
         if (curPlayer) {
             clickLock = true;
-            setTimeout("compute(0,0,0,21,pawn2SquareMove,2/*ply*/);compute(0,0,0,21,pawn2SquareMove,1);clickLock=false;",250);
+            setTimeout(triggerAI,250);
         }
     }
 }

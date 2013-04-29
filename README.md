@@ -11,3 +11,12 @@ https://github.com/bormand/nanochess/wiki
 Original source code borrowed from this site:
 http://www.nanochess.org/chess4.html
 
+**modularized1** was my first attempt at making a requirejs AMD module out of the code using a "class"
+But for some reason some variables are not updated properly and it is **not working right**.
+So I restarted the attempt staying closer to the original code.
+
+And that is:
+**modularized2**
+**This works right** as far as I can tell.
+
+The idea here is to separate the logic from the presentation and make the AI reusable.
