@@ -191,6 +191,7 @@ define([], function() {
 										// if we in check mode (s==1) and current move (O,p,n) same as player's (B,b,i)
 										// and move is possible then update chessboard and return
 										if (!currDepth && scanDepth == 1 && moveFrom == O && curPieceCode == n && p == moveTo && L >= -C10000) {
+											callbacks.aiCallback( curPlayer, moveFrom, moveTo);
 											DrawPieces();
 											C120--;
 											pawn2SquareMove = J;
@@ -313,6 +314,7 @@ define([], function() {
 	
 	var callbacks = {
 		drawCallback : function() {},
+		aiCallback : function() {},
 		OnClick : OnClick,
 		board: board,
 		getMoveFrom : function() {return moveFrom;}

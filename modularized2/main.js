@@ -6,10 +6,15 @@ require( ['ToledoChess'], function(ToledoChess){
 
 	var ai = ToledoChess;
 	ai.drawCallback = DrawPieces;
+	ai.aiCallback = aiCallback;
 
 	CreateChessboardView();
 	DrawPieces();
 
+	function aiCallback( player, from, to)
+	{
+		console.log( player, from, to);
+	}
 
 	function CreateChessboardView() {
 		var x, y, i;
