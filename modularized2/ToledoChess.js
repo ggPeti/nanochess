@@ -192,6 +192,8 @@ define([], function() {
 										// and move is possible then update chessboard and return
 										if (!currDepth && scanDepth == 1 && moveFrom == O && curPieceCode == n && p == moveTo && L >= -C10000) {
 											callbacks.aiCallback( curPlayer, moveFrom, moveTo);
+											if( m) // castling
+												callbacks.aiCallback( curPlayer, m, g);
 											DrawPieces();
 											C120--;
 											pawn2SquareMove = J;
